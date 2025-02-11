@@ -48,34 +48,16 @@ actions:
       lights: !input lights
       scenes:
         Bisexual Lighting:
-          - - 0
-            - 110
-            - 255
-          - - 255
-            - 0
-            - 255
+          - [0, 110, 255]
+          - [255, 0, 255]
         Gamer Mode:
-          - - 255
-            - 0
-            - 0
-          - - 255
-            - 165
-            - 0
-          - - 255
-            - 255
-            - 0
-          - - 0
-            - 255
-            - 0
-          - - 0
-            - 0
-            - 255
-          - - 75
-            - 0
-            - 130
-          - - 148
-            - 0
-            - 211
+          - [255, 0, 0] # Red
+          - [255, 165, 0] # Orange
+          - [255, 255, 0] # Yellow
+          - [0, 255, 0] # Green
+          - [0, 0, 255] # Blue
+          - [75, 0, 130] # Indigo
+          - [148, 0, 211] # Violet
   - repeat:
       until:
         - condition: template
