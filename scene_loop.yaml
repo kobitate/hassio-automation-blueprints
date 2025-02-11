@@ -1,0 +1,115 @@
+blueprint:
+  domain: automation
+  name: Scene Light loop
+  author: Kobi Tate
+  description: Loops over a pre-defined set of colors when a select helper is activated, meant as a Home Assistant only replacement for animated Hue Scenes
+  input:
+    lights:
+      selector:
+        entity:
+          multiple: true
+          filter:
+            domain: light
+    scene_select:
+      name: Scene Dropdown helper
+      description: A Dropdown helper with the names of all the provided scenes ("Bisexual Lighting" and "Gamer Mode")
+      selector:
+        entity:
+          filter:
+            domain: input_select
+    transition_time:
+      name: Transition Duration (in seconds)
+      selector:
+        number:
+          min: 0
+          max: 500
+
+mode: queued
+max: 10
+
+triggers:
+  - trigger: state
+    entity_id:
+      - input_select.office_light_loop
+
+conditions:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: input_select.office_light_loop
+        state: "Off"
+
+actions:
+  - alias: Set color variable
+    variables:
+      transition_time: !input transition_time
+      scene_selector: !input scene_select
+      scene_name: "{{ states(scene_selector) }}"
+      lights: !input lights
+      scenes:
+        Bisexual Lighting:
+          - - 0
+            - 110
+            - 255
+          - - 255
+            - 0
+            - 255
+        Gamer Mode:
+          - - 255
+            - 0
+            - 0
+          - - 255
+            - 165
+            - 0
+          - - 255
+            - 255
+            - 0
+          - - 0
+            - 255
+            - 0
+          - - 0
+            - 0
+            - 255
+          - - 75
+            - 0
+            - 130
+          - - 148
+            - 0
+            - 211
+  - repeat:
+      until:
+        - condition: template
+          value_template: "{{ states(scene_selector) != scene_name }}"
+      sequence:
+        - variables:
+            scene: "{{ scenes[scene_name] }}"
+            color_offset: "{{ repeat.index }}"
+            first_run: "{{ repeat.first }}"
+            this_transition_time: "{{ 0.5 if first_run else transition_time }}"
+        - repeat:
+            for_each: "{{ lights }}"
+            sequence:
+              - variables:
+                  scene_length: "{{ scene | length }}"
+                  bulb_index: "{{ repeat.index | int }}"
+                  scene_color_index: "{{ (color_offset + (bulb_index - 1)) % scene | length - 1 }}"
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ repeat.item }}"
+                data_template:
+                  brightness_pct: 100
+                  rgb_color: "{{ scene[scene_color_index] }}"
+                  transition: "{{ this_transition_time }}"
+        - wait_for_trigger:
+            - trigger: state
+              entity_id: input_select.office_light_loop
+          timeout:
+            seconds: "{{ this_transition_time }}"
+  - condition: state
+    entity_id: input_select.office_light_loop
+    state: "Off"
+  - action: light.turn_on
+    target:
+      entity_id: "{{ lights }}"
+    data:
+      brightness_pct: 50
