@@ -1,0 +1,101 @@
+blueprint:
+  name: Scene Button
+  description: Use a Zigbee button to activate a set of scenes
+  domain: automation
+  author: Kobi Tate
+  input:
+    button_entity:
+      name: Button
+      selector:
+        device:
+    single_press_scene:
+      name: Single Press Scene
+      selector:
+        entity:
+          filter:
+            domain: scene
+    quick_double_press_scene:
+      name: Quick Double Press Scene
+      selector:
+        entity:
+          filter:
+            domain: scene
+    slow_double_press_scene:
+      name: Slow Double Press Scene
+      selector:
+        entity:
+          filter:
+            domain: scene
+    long_press_scene:
+      name: Long Press Scene
+      selector:
+        entity:
+          filter:
+            domain: scene
+
+mode: single
+trigger:
+  - domain: zha
+    platform: device
+    device_id: !input button_entity
+    type: remote_button_short_press
+    subtype: remote_button_short_press
+    id: single
+  - domain: zha
+    platform: device
+    device_id: !input button_entity
+    type: remote_button_double_press
+    subtype: remote_button_double_press
+    id: double
+  - domain: zha
+    platform: device
+    device_id: !input button_entity
+    type: remote_button_long_press
+    subtype: remote_button_long_press
+    id: long
+
+action: 
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - single
+      sequence:
+      - service: scene.turn_on
+        metadata: {}
+        target:
+          entity_id: !input single_press_scene
+      - wait_for_trigger:
+        - device_id: !input button_entity
+          domain: zha
+          platform: device
+          type: remote_button_short_press
+          subtype: remote_button_short_press
+        continue_on_timeout: false
+        timeout:
+          hours: 0
+          minutes: 0
+          seconds: 5
+          milliseconds: 0
+      - service: scene.turn_on
+        metadata: {}
+        target:
+          entity_id: !input slow_double_press_scene
+    - conditions:
+      - condition: trigger
+        id:
+        - double
+      sequence:
+      - service: scene.turn_on
+        metadata: {}
+        target:
+          entity_id: !input quick_double_press_scene
+    - conditions:
+      - condition: trigger
+        id:
+        - long
+      sequence:
+      - service: scene.turn_on
+        metadata: {}
+        target:
+          entity_id: !input long_press_scene

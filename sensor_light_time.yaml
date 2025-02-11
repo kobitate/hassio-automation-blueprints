@@ -1,0 +1,143 @@
+blueprint:
+  domain: automation
+  name: Night Mode Sensor Light
+  author: Kobi Tate
+  description: Sensor based light with two different dimming settings based on a night mode binary sensor
+  input:
+    motion_sensor:
+      name: Motion/Opening Sensor
+      selector:
+        entity:
+          multiple: true
+          filter:
+            domain: binary_sensor
+    night_mode_sensor:
+      name: Night mode sensor
+      selector:
+        entity:
+          filter:
+            domain: binary_sensor
+    kill_switch:
+      name: Kill Switch
+      description: Input Boolean helper used to exit the automation from another automation
+      selector:
+        entity:
+          filter:
+            domain: input_boolean
+    light:
+      name: Light
+      selector:
+        entity:
+          multiple: true
+          filter:
+            domain: light
+    brightness_day_pct:
+      name: Daytime Brightness
+      selector:
+        number:
+          min: 0
+          max: 100
+    brightness_night_pct:
+      name: Nighttime Brightness
+      selector:
+        number:
+          min: 0
+          max: 100
+    delay_duration:
+      name: Post-motion delay
+      description: The amount of time to wait before starting turn-off fade sequence. For openings, works best with at least 2 seconds to prevent conflicts with restarting the script
+      selector:
+        duration:
+    warn_duration:
+      name: Post-fadeout delay
+      description: The amount of time to wait before turning lights off all the way
+      selector:
+        duration:
+
+mode: restart
+trigger:
+  - trigger: state
+    entity_id: !input motion_sensor
+    to: "on"
+
+actions:
+  - variables:
+      day_pct: !input brightness_day_pct
+      night_pct: !input brightness_night_pct
+      day_warn_pct: "{{ day_pct / 2 }}"
+      night_warn_pct: "{{ night_pct / 2 }}"
+  - if:
+    - condition: state
+      entity_id: !input night_mode_sensor
+      state: "off"
+    then:
+    # if night mode is off, turn on day brightness
+    - action: light.turn_on
+      metadata: {}
+      data_template:
+        brightness_pct: "{{ day_pct | float }}"
+        transition: 0.25
+      target:
+        entity_id: !input light
+    else:
+    # if night mode is on, turn on night brightness
+    - action: light.turn_on
+      metadata: {}
+      data_template:
+        brightness_pct: "{{ night_pct | float }}"
+        transition: 0.25
+      target:
+        entity_id: !input light
+  # wait for no motion/closed opening
+  - wait_for_trigger:
+      - trigger: state
+        entity_id: !input motion_sensor
+        to: "off"
+        for: !input delay_duration
+      - trigger: state
+        entity_id: !input kill_switch
+        to: "on"
+    continue_on_timeout: true
+    timeout:
+      hours: 1
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  # if kill switch is on, go directly to power off
+  - if:
+    - condition: state
+      entity_id: !input kill_switch
+      state: "off"
+    # otherwise, start the delay sequence
+    then:
+      - if:
+        - condition: state
+          entity_id: !input night_mode_sensor
+          state: "off"
+        then:
+        # if night mode is off, turn on day warning brightness
+        - action: light.turn_on
+          metadata: {}
+          data_template:
+            brightness_pct: "{{ day_warn_pct | float }}"
+            transition: 0.25
+          target:
+            entity_id: !input light
+        else:
+        # if night mode is on, turn on night warning brightness
+        - action: light.turn_on
+          metadata: {}
+          data_template:
+            brightness_pct: "{{ night_warn_pct | float }}"
+            transition: 0.25
+          target:
+            entity_id: !input light
+      # delay to warn of impending darkness
+      - delay: !input warn_duration
+  # become consumed by darkness
+  - action: light.turn_off
+    metadata: {}
+    data:
+      transition: 0.5
+    target:
+      entity_id: !input light

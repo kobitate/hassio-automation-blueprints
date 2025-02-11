@@ -1,0 +1,116 @@
+blueprint:
+  domain: automation
+  name: Night Mode Everything Presence Lights
+  author: Kobi Tate
+  description: Everything Presence sensor based automatic lighting with two different dimming settings based on a night mode binary sensor
+  input:
+    presence_sensor:
+      name: Presence Sensor
+      selector:
+        entity:
+          filter:
+            integration: esphome
+            domain: binary_sensor
+            device_class: occupancy
+    night_mode_sensor:
+      name: Night mode sensor
+      description: A Dropdown helper with the values "Day", "Night", and "Bedtime"
+      selector:
+        entity:
+          filter:
+            domain: input_select
+    light:
+      name: Light(s)
+      selector:
+        entity:
+          multiple: true
+          filter:
+            domain: light
+    brightness_day_pct:
+      name: Day Brightness
+      selector:
+        number:
+          min: 0
+          max: 100
+    brightness_night_pct:
+      name: Night Brightness
+      selector:
+        number:
+          min: 0
+          max: 100
+    brightness_bedtime_pct:
+      name: Bedtime Brightness
+      selector:
+        number:
+          min: 0
+          max: 100
+
+mode: single
+trigger:
+  - trigger: state
+    entity_id: !input presence_sensor
+    to: "on"
+
+actions:
+  - variables:
+      day_pct: !input brightness_day_pct
+      night_pct: !input brightness_night_pct
+      bedtime_pct: !input brightness_bedtime_pct
+  - choose:
+      # Day light settings
+      - conditions:
+          - condition: state
+            entity_id: !input night_mode_sensor
+            state: "Day"
+        sequence:
+          - action: light.turn_on
+            metadata: {}
+            data_template:
+              brightness_pct: "{{ day_pct | float }}"
+              transition: 0.25
+            target:
+              entity_id: !input light
+      # Night light settings
+      - conditions:
+          - condition: state
+            entity_id: !input night_mode_sensor
+            state: "Night"
+        sequence:
+          - action: light.turn_on
+            metadata: {}
+            data_template:
+              brightness_pct: "{{ night_pct | float }}"
+              transition: 0.25
+            target:
+              entity_id: !input light
+      # Bedtime light settings
+      - conditions:
+          - condition: state
+            entity_id: !input night_mode_sensor
+            state: "Bedtime"
+        sequence:
+          - action: light.turn_on
+            metadata: {}
+            data_template:
+              brightness_pct: "{{ bedtime_pct | float }}"
+              transition: 0.25
+            target:
+              entity_id: !input light
+  # wait until occupancy clears
+  - wait_for_trigger:
+      - trigger: state
+        entity_id: !input presence_sensor
+        to: "off"
+    continue_on_timeout: true
+    timeout:
+      hours: 1
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  # become consumed by darkness
+  - action: light.turn_off
+    metadata: {}
+    data:
+      transition: 0.5
+    target:
+      entity_id: !input light
