@@ -29,14 +29,13 @@ max: 10
 
 triggers:
   - trigger: state
-    entity_id:
-      - input_select.office_light_loop
+    entity_id: !input scene_select
 
 conditions:
   - condition: not
     conditions:
       - condition: state
-        entity_id: input_select.office_light_loop
+        entity_id: !input scene_select
         state: "Off"
 
 actions:
@@ -84,11 +83,11 @@ actions:
                   transition: "{{ this_transition_time }}"
         - wait_for_trigger:
             - trigger: state
-              entity_id: input_select.office_light_loop
+              entity_id: !input scene_select
           timeout:
             seconds: "{{ this_transition_time }}"
   - condition: state
-    entity_id: input_select.office_light_loop
+    entity_id: !input scene_select
     state: "Off"
   - action: light.turn_on
     target:
